@@ -1,0 +1,364 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Exposure Balance</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;600;700&family=Oswald:wght@500;600&display=swap">
+<style>
+/* Layout: a viewfinder with a stop meter on the left, three linked controls on the right; stacks on narrow screens. */
+:root {
+  --bg: #EDF0F3;
+  --surface: #FFFFFF;
+  --surface-2: #E1E7ED;
+  --ink: #12161C;
+  --muted: #4B5663;
+  --line: #C6CFD9;
+  --accent: #9C5800;
+  --accent-ink: #FFFFFF;
+  --good: #1B6E44;
+  --warn: #B3261E;
+  --font-display: 'Oswald', 'Arial Narrow', Arial, sans-serif;
+  --font-body: 'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14171C; --surface: #1D222A; --surface-2: #2A313B; --ink: #F1ECE2; --muted: #B9B3A6;
+    --line: #333B47; --accent: #F2B84B; --accent-ink: #14171C; --good: #5CC48A; --warn: #FF8F80;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14171C; --surface: #1D222A; --surface-2: #2A313B; --ink: #F1ECE2; --muted: #B9B3A6;
+  --line: #333B47; --accent: #F2B84B; --accent-ink: #14171C; --good: #5CC48A; --warn: #FF8F80;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 17px; line-height: 1.5; padding-inline: 16px; padding-block: 28px 48px; }
+.wrap { max-width: 1120px; margin-inline: auto; display: flex; flex-direction: column; gap: 24px; }
+header { display: flex; flex-direction: column; gap: 8px; }
+.eyebrow { font-size: 14px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0; }
+h1 { font-family: var(--font-display); font-weight: 600; font-size: clamp(34px, 6vw, 52px); line-height: 1.1; margin: 0; text-wrap: balance; }
+.intro { margin: 0; max-width: 62ch; color: var(--muted); }
+.lab { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 860px) { .lab { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.stage { position: relative; border-radius: 10px; overflow: hidden; background: #0b0d11; aspect-ratio: 16 / 9; max-width: 100%; }
+.stage svg { display: block; width: 100%; height: 100%; }
+.stage .blowout { position: absolute; inset: 0; background: #fff; pointer-events: none; opacity: 0; }
+.caption { margin: 0; font-size: 14px; color: var(--muted); }
+.effects { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 0; }
+@media (max-width: 480px) { .effects { grid-template-columns: minmax(0, 1fr); } }
+.effects div { background: var(--surface-2); border-radius: 10px; padding: 10px 12px; }
+.effects dt { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.effects dd { margin: 2px 0 0; font-weight: 700; font-size: 18px; }
+.meter-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.meter-head h2, .controls h2 { font-family: var(--font-display); font-weight: 500; font-size: 22px; letter-spacing: .02em; margin: 0; }
+.sum { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 15px; }
+.track { position: relative; height: 16px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+.track::after { content: ""; position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: var(--ink); opacity: .55; transform: translateX(-1px); }
+.marker { position: absolute; top: 50%; width: 22px; height: 22px; border-radius: 50%; background: var(--good); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--ink); transform: translate(-50%, -50%); transition: left .15s ease, background-color .15s ease; z-index: 1; }
+.marker.off { background: var(--warn); }
+.mticks { position: relative; height: 22px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mticks span { position: absolute; transform: translateX(-50%); }
+.status { margin: 0; font-weight: 600; min-height: 3em; }
+.status.off { color: var(--warn); }
+.status.ok { color: var(--good); }
+.controls { display: flex; flex-direction: column; gap: 18px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+legend { padding: 0; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+.seg { display: flex; flex-wrap: wrap; gap: 8px; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg label { border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 15px; font-weight: 600; background: var(--surface); }
+.seg input:checked + label { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.seg input:focus-visible + label { outline: 3px solid var(--ink); outline-offset: 2px; }
+.hint { margin: 0; font-size: 14px; color: var(--muted); }
+.ctl { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 6px; }
+.ctl-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.ctl-head label { font-weight: 700; font-size: 18px; }
+.ctl-head .sub { color: var(--muted); font-size: 14px; }
+.ctl-head .val { margin-left: auto; font-family: var(--font-display); font-weight: 600; font-size: 30px; line-height: 1; font-variant-numeric: tabular-nums; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 28px; background: transparent; margin: 0; cursor: pointer; }
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--line); }
+input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--line); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--ink); margin-top: -9px; }
+input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--ink); }
+input[type=range]:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; border-radius: 4px; }
+.ticks { position: relative; height: 20px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.ticks span.on { color: var(--ink); font-weight: 700; }
+.ctl-foot { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 15px; font-variant-numeric: tabular-nums; }
+.stops { font-weight: 700; }
+.auto { color: var(--accent); font-weight: 700; }
+.try { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { font: inherit; font-size: 15px; font-weight: 600; background: var(--surface); color: var(--ink); border: 1px solid var(--ink); border-radius: 10px; padding: 8px 14px; cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.btn:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .marker { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Exposure lab</p>
+    <h1>Exposure balance</h1>
+    <p class="intro">Light, noise and blur are linked. Move one setting and see what another setting has to do to keep the picture the same brightness.</p>
+  </header>
+
+  <div class="lab">
+    <div class="panel">
+      <div class="stage">
+        <svg id="scene" viewBox="0 0 640 360" role="img" aria-label="A red car on a street at dusk. The picture gets brighter, blurrier or grainier as the camera settings change." preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#1c2b52"/><stop offset=".55" stop-color="#7a5a8a"/><stop offset="1" stop-color="#e59a55"/>
+            </linearGradient>
+            <radialGradient id="glow"><stop offset="0" stop-color="#fff0c4" stop-opacity="1"/><stop offset="1" stop-color="#ffd37a" stop-opacity="0"/></radialGradient>
+            <filter id="bgblur" x="-10%" y="-10%" width="120%" height="120%"><feGaussianBlur id="bgblurNode" stdDeviation="4"/></filter>
+            <filter id="motion" filterUnits="userSpaceOnUse" x="-100" y="150" width="840" height="200"><feGaussianBlur id="motionNode" stdDeviation="4 0"/></filter>
+            <filter id="noise" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7"/><feColorMatrix type="saturate" values="0"/></filter>
+          </defs>
+          <rect width="640" height="360" fill="#1a1f2e"/>
+          <g transform="translate(-19 -11) scale(1.06)">
+            <g filter="url(#bgblur)">
+              <rect width="640" height="260" fill="url(#sky)"/>
+              <rect x="10" y="120" width="70" height="140" fill="#222a40"/>
+              <rect x="90" y="80" width="60" height="180" fill="#2a3350"/>
+              <rect x="160" y="140" width="80" height="120" fill="#1e2538"/>
+              <rect x="400" y="100" width="70" height="160" fill="#262e48"/>
+              <rect x="480" y="150" width="60" height="110" fill="#1d2336"/>
+              <rect x="550" y="90" width="80" height="170" fill="#2b3452"/>
+              <g fill="#ffd479">
+                <rect x="22" y="136" width="10" height="12"/><rect x="46" y="136" width="10" height="12"/><rect x="22" y="170" width="10" height="12"/><rect x="46" y="204" width="10" height="12"/>
+                <rect x="104" y="98" width="10" height="12"/><rect x="126" y="130" width="10" height="12"/><rect x="104" y="170" width="10" height="12"/><rect x="126" y="206" width="10" height="12"/>
+                <rect x="176" y="158" width="10" height="12"/><rect x="204" y="190" width="10" height="12"/>
+                <rect x="414" y="118" width="10" height="12"/><rect x="440" y="152" width="10" height="12"/><rect x="414" y="196" width="10" height="12"/>
+                <rect x="494" y="168" width="10" height="12"/><rect x="566" y="110" width="10" height="12"/><rect x="594" y="148" width="10" height="12"/><rect x="566" y="190" width="10" height="12"/><rect x="606" y="214" width="10" height="12"/>
+              </g>
+              <circle cx="250" cy="206" r="26" fill="url(#glow)"/><circle cx="250" cy="206" r="5" fill="#fff6d8"/>
+              <circle cx="372" cy="196" r="26" fill="url(#glow)"/><circle cx="372" cy="196" r="5" fill="#fff6d8"/>
+            </g>
+          </g>
+          <rect y="252" width="640" height="108" fill="#2a2d33"/>
+          <rect y="248" width="640" height="6" fill="#4a4d55"/>
+          <g fill="#d9d4c5"><rect x="30" y="318" width="70" height="6"/><rect x="170" y="318" width="70" height="6"/><rect x="310" y="318" width="70" height="6"/><rect x="450" y="318" width="70" height="6"/><rect x="590" y="318" width="70" height="6"/></g>
+          <g filter="url(#motion)">
+            <rect x="250" y="262" width="190" height="42" rx="12" fill="#d6453d"/>
+            <rect x="292" y="236" width="104" height="36" rx="10" fill="#d6453d"/>
+            <rect x="300" y="243" width="38" height="22" rx="4" fill="#cde7f3"/><rect x="346" y="243" width="42" height="22" rx="4" fill="#cde7f3"/>
+            <rect x="432" y="276" width="10" height="10" rx="3" fill="#ffe08a"/>
+            <circle cx="296" cy="306" r="17" fill="#15171b"/><circle cx="296" cy="306" r="7" fill="#8a8f98"/>
+            <circle cx="394" cy="306" r="17" fill="#15171b"/><circle cx="394" cy="306" r="7" fill="#8a8f98"/>
+          </g>
+          <rect id="grain" width="640" height="360" filter="url(#noise)" opacity="0.1" style="mix-blend-mode: overlay"/>
+        </svg>
+        <div class="blowout" id="blowout"></div>
+      </div>
+      <p class="caption">Starting shot: ISO 400, f/4, 1/125 s. The meter shows how far you are from that brightness.</p>
+
+      <div>
+        <div class="meter-head"><h2>Exposure meter</h2><span class="sum" id="sum"></span></div>
+        <div class="track" role="img" id="trackA11y" aria-label="Exposure meter"><div class="marker" id="marker"></div></div>
+        <div class="mticks" id="mticks" aria-hidden="true"></div>
+      </div>
+      <p class="status" id="status" aria-live="polite"></p>
+
+      <dl class="effects">
+        <div><dt>Background</dt><dd id="fx-bg"></dd></div>
+        <div><dt>Moving car</dt><dd id="fx-motion"></dd></div>
+        <div><dt>Noise</dt><dd id="fx-noise"></dd></div>
+      </dl>
+    </div>
+
+    <div class="panel controls">
+      <h2>Camera settings</h2>
+
+      <fieldset>
+        <legend>When you change a setting</legend>
+        <div class="seg">
+          <input type="radio" name="mode" id="mode-auto" value="auto" checked><label for="mode-auto">Keep exposure balanced</label>
+          <input type="radio" name="mode" id="mode-free" value="free"><label for="mode-free">Change one setting only</label>
+        </div>
+      </fieldset>
+
+      <fieldset id="compSet">
+        <legend>Let this setting adjust</legend>
+        <div class="seg">
+          <input type="radio" name="comp" id="comp-ap" value="ap" checked><label for="comp-ap">Aperture</label>
+          <input type="radio" name="comp" id="comp-sh" value="sh"><label for="comp-sh">Shutter speed</label>
+          <input type="radio" name="comp" id="comp-iso" value="iso"><label for="comp-iso">ISO</label>
+        </div>
+        <p class="hint" id="compHint"></p>
+      </fieldset>
+
+      <div id="ctls" class="controls"></div>
+
+      <fieldset>
+        <legend>Try this</legend>
+        <div class="try">
+          <button class="btn" type="button" id="p1">Raise ISO two stops, aperture adjusts</button>
+          <button class="btn" type="button" id="p2">Freeze the car, ISO adjusts</button>
+          <button class="btn" type="button" id="p3">Back to the starting shot</button>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var KEYS = ['iso', 'ap', 'sh'];
+  var CFG = {
+    iso: { name: 'ISO', sub: 'Sensor sensitivity', vals: [100, 200, 400, 800, 1600, 3200, 6400], fmt: function (v) { return String(v); }, tick: function (v) { return v; }, term: function (i) { return i - 2; }, inv: function (t) { return t + 2; } },
+    ap:  { name: 'Aperture', sub: 'Lens opening, lower f-number is wider', vals: [1.4, 2, 2.8, 4, 5.6, 8, 11, 16], fmt: function (v) { return 'f/' + v; }, tick: function (v) { return v; }, term: function (i) { return 3 - i; }, inv: function (t) { return 3 - t; } },
+    sh:  { name: 'Shutter speed', sub: 'How long the sensor sees light', vals: [1000, 500, 250, 125, 60, 30, 15], fmt: function (v) { return '1/' + v + ' s'; }, tick: function (v) { return v; }, term: function (i) { return i - 3; }, inv: function (t) { return t + 3; } }
+  };
+  var BASE = { iso: 2, ap: 3, sh: 3 };
+  var st = { iso: 2, ap: 3, sh: 3, mode: 'auto', comp: 'ap', adjusted: null, limited: null };
+
+  var $ = function (id) { return document.getElementById(id); };
+  function sign(n) { return n > 0 ? '+' + n : n < 0 ? '−' + Math.abs(n) : '0'; }
+  function stopsText(n) { return sign(n) + (Math.abs(n) === 1 ? ' stop' : ' stops'); }
+  function total() { return KEYS.reduce(function (s, k) { return s + CFG[k].term(st[k]); }, 0); }
+
+  // Build the three controls
+  var ctlsHtml = KEYS.map(function (k) {
+    var c = CFG[k];
+    return '<section class="ctl" id="ctl-' + k + '">' +
+      '<div class="ctl-head"><label for="r-' + k + '">' + c.name + '</label><span class="sub">' + c.sub + '</span><span class="val" id="v-' + k + '"></span></div>' +
+      '<input type="range" id="r-' + k + '" min="0" max="' + (c.vals.length - 1) + '" step="1" value="' + st[k] + '">' +
+      '<div class="ticks" id="t-' + k + '" aria-hidden="true"></div>' +
+      '<div class="ctl-foot"><span class="stops" id="s-' + k + '"></span><span class="auto" id="a-' + k + '" hidden>Adjusting to balance</span></div>' +
+      '</section>';
+  }).join('');
+  $('ctls').innerHTML = ctlsHtml;
+  KEYS.forEach(function (k) {
+    var c = CFG[k], n = c.vals.length;
+    $('t-' + k).innerHTML = c.vals.map(function (v, i) {
+      return '<span style="left: calc(10px + (100% - 20px) * ' + (i / (n - 1)) + ')">' + c.tick(v) + '</span>';
+    }).join('');
+    $('r-' + k).addEventListener('input', function (e) {
+      var idx = parseInt(e.target.value, 10);
+      st[k] = idx;
+      balance(k);
+      render();
+    });
+  });
+  var mt = [];
+  for (var m = -4; m <= 4; m++) { mt.push('<span style="left:' + ((m + 4) / 8 * 100) + '%">' + (m > 0 ? '+' + m : m < 0 ? '−' + Math.abs(m) : '0') + '</span>'); }
+  $('mticks').innerHTML = mt.join('');
+
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  // Move the compensating setting so the three light terms add up to zero.
+  function balance(changed) {
+    st.adjusted = null; st.limited = null;
+    if (st.mode !== 'auto') return;
+    var c = st.comp;
+    if (c === changed) c = (c === 'ap') ? 'sh' : 'ap';
+    var sum = 0;
+    KEYS.forEach(function (k) { if (k !== c) sum += CFG[k].term(st[k]); });
+    var want = CFG[c].inv(-sum);
+    var idx = clamp(want, 0, CFG[c].vals.length - 1);
+    st[c] = idx;
+    st.adjusted = c;
+    if (idx !== want) st.limited = c;
+  }
+
+  function band(i, arr) { return arr[i]; }
+
+  function render() {
+    var E = total();
+    KEYS.forEach(function (k) {
+      var c = CFG[k];
+      $('r-' + k).value = st[k];
+      $('r-' + k).setAttribute('aria-valuetext', c.fmt(c.vals[st[k]]));
+      $('v-' + k).textContent = c.fmt(c.vals[st[k]]);
+      $('s-' + k).textContent = 'Light: ' + stopsText(c.term(st[k]) - c.term(BASE[k]));
+      $('a-' + k).hidden = !(st.mode === 'auto' && st.adjusted === k);
+      var spans = $('t-' + k).children;
+      for (var i = 0; i < spans.length; i++) spans[i].className = (i === st[k]) ? 'on' : '';
+    });
+
+    // Meter
+    var shown = clamp(E, -4, 4);
+    $('marker').style.left = ((shown + 4) / 8 * 100) + '%';
+    $('marker').className = 'marker' + (E === 0 ? '' : ' off');
+    var parts = KEYS.map(function (k) { return CFG[k].name.split(' ')[0] + ' ' + sign(CFG[k].term(st[k])); });
+    $('sum').textContent = 'Light from ' + parts.join(', ') + ' = ' + sign(E);
+    $('trackA11y').setAttribute('aria-label', 'Exposure meter, ' + stopsText(E) + ' from the starting shot');
+    var s = $('status');
+    var abs = Math.abs(E), pl = abs === 1 ? 'stop' : 'stops';
+    if (E === 0) {
+      s.className = 'status ok';
+      s.textContent = 'Balanced. The picture is as bright as the starting shot.';
+    } else {
+      s.className = 'status off';
+      s.textContent = abs + ' ' + pl + ' too ' + (E > 0 ? 'bright' : 'dark') + '.';
+    }
+    if (st.limited) {
+      s.textContent += ' ' + CFG[st.limited].name + ' has reached its limit, so the exposure can no longer be balanced.';
+    }
+
+    // Picture
+    var b = clamp(Math.pow(2, E * 0.5), 0.08, 3);
+    $('scene').style.filter = 'brightness(' + b.toFixed(3) + ')';
+    $('blowout').style.opacity = E > 1 ? Math.min(0.6, (E - 1) * 0.13).toFixed(3) : '0';
+    var bgBlur = (7 - st.ap) * 1.3;
+    var mo = [0, 0.8, 2, 4, 7, 11, 16][st.sh];
+    var gr = [0, 0.04, 0.1, 0.2, 0.32, 0.46, 0.6][st.iso];
+    $('bgblurNode').setAttribute('stdDeviation', bgBlur.toFixed(2));
+    $('motionNode').setAttribute('stdDeviation', mo + ' 0');
+    $('grain').setAttribute('opacity', gr);
+    $('fx-bg').textContent = band(st.ap, ['Very soft', 'Very soft', 'Soft', 'Soft', 'Slightly soft', 'Slightly soft', 'Sharp', 'Sharp']);
+    $('fx-motion').textContent = band(st.sh, ['Frozen', 'Frozen', 'Slight blur', 'Slight blur', 'Blurred', 'Smeared', 'Smeared']);
+    $('fx-noise').textContent = band(st.iso, ['Clean', 'Clean', 'Some grain', 'Some grain', 'Grainy', 'Very grainy', 'Very grainy']);
+
+    // Mode UI
+    $('compSet').hidden = st.mode !== 'auto';
+    $('compHint').textContent = 'Change any slider and ' + CFG[st.comp].name.toLowerCase() + ' moves to keep the exposure the same. If you move ' + CFG[st.comp].name.toLowerCase() + ' yourself, ' + (st.comp === 'ap' ? 'shutter speed' : 'aperture') + ' takes over.';
+  }
+
+  document.querySelectorAll('input[name=mode]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      st.mode = r.value;
+      if (st.mode === 'auto') balance(null);
+      else { st.adjusted = null; st.limited = null; }
+      render();
+    });
+  });
+  document.querySelectorAll('input[name=comp]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      st.comp = r.value;
+      if (st.mode === 'auto') balance(null);
+      render();
+    });
+  });
+
+  function setMode(mode, comp) {
+    st.mode = mode; st.comp = comp;
+    $('mode-' + mode).checked = true;
+    $('comp-' + comp).checked = true;
+  }
+  $('p1').addEventListener('click', function () {
+    st.iso = BASE.iso; st.ap = BASE.ap; st.sh = BASE.sh;
+    setMode('auto', 'ap');
+    st.iso = 4; balance('iso'); render();
+  });
+  $('p2').addEventListener('click', function () {
+    st.iso = BASE.iso; st.ap = BASE.ap; st.sh = BASE.sh;
+    setMode('auto', 'iso');
+    st.sh = 0;
+    // ISO is the compensating setting here, so balance with it directly.
+    var sum = CFG.ap.term(st.ap) + CFG.sh.term(st.sh);
+    var want = CFG.iso.inv(-sum);
+    st.iso = clamp(want, 0, 6);
+    st.adjusted = 'iso'; st.limited = (st.iso !== want) ? 'iso' : null;
+    render();
+  });
+  $('p3').addEventListener('click', function () {
+    st.iso = BASE.iso; st.ap = BASE.ap; st.sh = BASE.sh;
+    st.adjusted = null; st.limited = null;
+    render();
+  });
+
+  render();
+})();
+</script>
+
+</body></html>
